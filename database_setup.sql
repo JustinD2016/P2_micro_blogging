@@ -17,29 +17,29 @@ create table if not exists user (
     constraint firstName_min_length check (char_length(trim(firstName)) >= 2),
     constraint lastName_min_length check (char_length(trim(lastName)) >= 2)
 );
-
--- Create the post table
-CREATE TABLE post (
-    postId INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS post (
+    postId INT AUTO_INCREMENT,
     userId INT NOT NULL,
-    content TEXT NOT NULL,
+    content VARCHAR(1024) NOT NULL,
     postDate DATETIME NOT NULL,
-    FOREIGN KEY (userId) REFERENCES user(userId)
+    PRIMARY KEY (postId),
+    FOREIGN KEY (userId) REFERENCES user(userId),
+    CONSTRAINT content_min_length CHECK (CHAR_LENGTH(TRIM(content)) >= 1)
 );
 
--- Create the comment table
-CREATE TABLE comment (
-    commentId INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS comment (
+    commentId INT AUTO_INCREMENT,
     postId INT NOT NULL,
     userId INT NOT NULL,
-    content TEXT NOT NULL,
+    content VARCHAR(1024) NOT NULL,
     commentDate DATETIME NOT NULL,
+    PRIMARY KEY (commentId),
     FOREIGN KEY (postId) REFERENCES post(postId),
-    FOREIGN KEY (userId) REFERENCES user(userId)
+    FOREIGN KEY (userId) REFERENCES user(userId),
+    CONSTRAINT comment_min_length CHECK (CHAR_LENGTH(TRIM(content)) >= 1)
 );
 
--- Create the heart table
-CREATE TABLE heart (
+CREATE TABLE IF NOT EXISTS heart (
     postId INT NOT NULL,
     userId INT NOT NULL,
     PRIMARY KEY (postId, userId),
@@ -47,8 +47,7 @@ CREATE TABLE heart (
     FOREIGN KEY (userId) REFERENCES user(userId)
 );
 
--- Create the bookmark table
-CREATE TABLE bookmark (
+CREATE TABLE IF NOT EXISTS bookmark (
     postId INT NOT NULL,
     userId INT NOT NULL,
     PRIMARY KEY (postId, userId),
@@ -56,12 +55,10 @@ CREATE TABLE bookmark (
     FOREIGN KEY (userId) REFERENCES user(userId)
 );
 
--- Create the follow table
-CREATE TABLE follow (
+CREATE TABLE IF NOT EXISTS follow (
     followerId INT NOT NULL,
     followeeId INT NOT NULL,
     PRIMARY KEY (followerId, followeeId),
     FOREIGN KEY (followerId) REFERENCES user(userId),
     FOREIGN KEY (followeeId) REFERENCES user(userId)
 );
-
