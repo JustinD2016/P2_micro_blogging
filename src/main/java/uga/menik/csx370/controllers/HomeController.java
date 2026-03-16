@@ -6,8 +6,13 @@ This is a project developed by Dr. Menik to give the students an opportunity to 
 package uga.menik.csx370.controllers;
 
 import java.net.URLEncoder;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.nio.charset.StandardCharsets;
+import java.sql.PreparedStatement;
 import java.util.List;
+
+import javax.sql.DataSource;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +23,8 @@ import org.springframework.web.servlet.ModelAndView;
 
 import uga.menik.csx370.models.Post;
 import uga.menik.csx370.utility.Utility;
+import uga.menik.csx370.services.UserService;
+
 
 /**
  * This controller handles the home page and some of it's sub URLs.
@@ -26,6 +33,12 @@ import uga.menik.csx370.utility.Utility;
 @RequestMapping
 public class HomeController {
 
+    private final DataSource dataSource;
+    private final UserService userService;
+    public HomeController(DataSource dataSource, UserService userService) {
+        this.dataSource = dataSource;
+        this.userService = userService;
+    }
     /**
      * This is the specific function that handles the root URL itself.
      * 
@@ -67,11 +80,24 @@ public class HomeController {
     @PostMapping("/createpost")
     public String createPost(@RequestParam(name = "posttext") String postText) {
         System.out.println("User is creating post: " + postText);
+       
+        final String sql = "INSERT INTO post (userId, content, postDate) VALUES (?, ?, ?)";
+        
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, Integer.parseInt(userService.getLoggedInUser().getUserId()));
+            pstmt.setString(2, postText);
+            pstmt.setString(3, java.time.LocalDateTime.now().toString());
+            
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                return "redirect:/";
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
 
-        // Redirect the user if the post creation is a success.
-        // return "redirect:/";
-
-        // Redirect the user with an error message if there was an error.
         String message = URLEncoder.encode("Failed to create the post. Please try again.",
                 StandardCharsets.UTF_8);
         return "redirect:/?error=" + message;
