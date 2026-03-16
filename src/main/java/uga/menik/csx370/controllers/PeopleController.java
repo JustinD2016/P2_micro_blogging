@@ -7,7 +7,11 @@ package uga.menik.csx370.controllers;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Connection;
 import java.util.List;
+import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -29,15 +33,20 @@ import uga.menik.csx370.utility.Utility;
 @RequestMapping("/people")
 public class PeopleController {
     @Autowired
-private UserService userService;
+    private UserService userService;
 
-@Autowired
-private PeopleService peopleService;
+    private final DataSource dataSource;
+    private PeopleService peopleService;
 
     // Inject UserService and PeopleService instances.
     // See LoginController.java to see how to do this.
     // Hint: Add a constructor with @Autowired annotation.
-
+    @Autowired
+    public PeopleController(UserService userService, PeopleService peopleService, DataSource dataSource) {
+        this.userService = userService;
+        this.peopleService = peopleService;
+        this.dataSource = dataSource;
+    }
     /**
      * Serves the /people web page.
      * 
@@ -86,7 +95,37 @@ private PeopleService peopleService;
         System.out.println("User is attempting to follow/unfollow a user:");
         System.out.println("\tuserId: " + userId);
         System.out.println("\tisFollow: " + isFollow);
-
+        if (isFollow) {
+           final String sql = "INSERT INTO follow (followerId, followeeId) VALUES (?, ?)";
+           try (Connection conn = dataSource.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, Integer.parseInt(userId));
+            pstmt.setInt(2, Integer.parseInt(userService.getLoggedInUser().getUserId()));
+            
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                return "redirect:/";
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        } else {
+            final String sql = "DELETE FROM follow WHERE followerId = ? AND followeeId = ?";
+            try (Connection conn = dataSource.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, Integer.parseInt(userId));
+            pstmt.setInt(2, Integer.parseInt(userService.getLoggedInUser().getUserId()));
+            
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                return "redirect:/";
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        }
         // Redirect the user if the comment adding is a success.
         // return "redirect:/people";
 

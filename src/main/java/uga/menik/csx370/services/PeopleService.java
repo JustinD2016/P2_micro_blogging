@@ -41,12 +41,13 @@ public class PeopleService {
      */
     public List<FollowableUser> getFollowableUsers(String userIdToExclude) {
         List<FollowableUser> fol = new ArrayList<>();
-        final String sql = "select * from user where userId != ?";
+        final String sql = "select u.userId, u.firstName, u.lastName from user u where u.userId != ? AND u.userId NOT IN (SELECT followerId FROM follow WHERE followeeId = ?)";
 
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, userIdToExclude);
+            pstmt.setString(2, userService.getLoggedInUser().getUserId());
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
