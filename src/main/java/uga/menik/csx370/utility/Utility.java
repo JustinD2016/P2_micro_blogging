@@ -1,5 +1,6 @@
 package uga.menik.csx370.utility;
 
+import java.sql.PreparedStatement;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -80,5 +81,49 @@ public class Utility {
         }
         return posts;
     }
+    public static List<ExpandedPost> convertResultSetToExpandedPostList(java.sql.ResultSet rs, java.sql.Connection conn) throws java.sql.SQLException {
+        List<ExpandedPost> posts = new ArrayList<>();
+        while (rs.next()) {
+            String postId = rs.getString("postId");
+            String userId = rs.getString("userId");
+            String firstName = rs.getString("firstName");
+            String lastName = rs.getString("lastName");
+            String content = rs.getString("content");
+            String postDate = rs.getString("postDate");
+            int heartsCount = rs.getInt("heartsCount");
+            int commentsCount = rs.getInt("commentsCount");
+            boolean isHearted = rs.getBoolean("isHearted");
+            boolean isBookmarked = rs.getBoolean("isBookmarked");
+
+            User user = new User(userId, firstName, lastName);
+
+            // Second query to get comments for this post
+            List<Comment> comments = new ArrayList<>();
+            final String commentSql = "SELECT c.commentId, c.content, c.commentDate, c.userId, u.firstName, u.lastName " +
+                    "FROM comment c JOIN user u ON c.userId = u.userId " +
+                    "WHERE c.postId = ? ORDER BY c.commentDate ASC";
+
+            try (PreparedStatement commentStmt = conn.prepareStatement(commentSql)) {
+                commentStmt.setString(1, postId);
+                try (java.sql.ResultSet commentRs = commentStmt.executeQuery()) {
+                    while (commentRs.next()) {
+                        String commentId = commentRs.getString("commentId");
+                        String commentContent = commentRs.getString("content");
+                        String commentDate = commentRs.getString("commentDate");
+                        String commentUserId = commentRs.getString("userId");
+                        String commentFirstName = commentRs.getString("firstName");
+                        String commentLastName = commentRs.getString("lastName");
+
+                        User commentUser = new User(commentUserId, commentFirstName, commentLastName);
+                        comments.add(new Comment(commentId, commentContent, commentDate, commentUser));
+                    }
+                }
+            }
+
+            ExpandedPost post = new ExpandedPost(postId, content, postDate, user, heartsCount, commentsCount, isHearted, isBookmarked, comments);
+            posts.add(post);
+        }
+    return posts;
+}
 
 }
