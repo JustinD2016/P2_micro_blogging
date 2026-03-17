@@ -6,6 +6,11 @@ This is a project developed by Dr. Menik to give the students an opportunity to 
 package uga.menik.csx370.controllers;
 
 import java.util.List;
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.ResultSet;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -27,14 +32,16 @@ public class ProfileController {
 
     // UserService has user login and registration related functions.
     private final UserService userService;
+    private final DataSource dataSource;
 
     /**
      * See notes in AuthInterceptor.java regarding how this works 
      * through dependency injection and inversion of control.
      */
     @Autowired
-    public ProfileController(UserService userService) {
+    public ProfileController(UserService userService, DataSource dataSource) {
         this.userService = userService;
+        this.dataSource = dataSource;
     }
 
     /**
@@ -56,15 +63,36 @@ public class ProfileController {
     @GetMapping("/{userId}")
     public ModelAndView profileOfSpecificUser(@PathVariable("userId") String userId) {
         System.out.println("User is attempting to view profile: " + userId);
-        
+
         // See notes on ModelAndView in BookmarksController.java.
         ModelAndView mv = new ModelAndView("posts_page");
 
-        // Following line populates sample data.
-        // You should replace it with actual data from the database.
-        List<Post> posts = Utility.createSamplePostsListWithoutComments();
-        mv.addObject("posts", posts);
+        final String sql = "SELECT " +
+            "p.postId, " +
+            "p.userId, " +
+            "u.firstName, " +
+            "u.lastName, " +
+            "p.content, " +
+            "p.postDate, " +
+            "(SELECT COUNT(*) FROM heart h WHERE h.postId = p.postId) AS heartsCount, " +
+            "(SELECT COUNT(*) FROM comment c WHERE c.postId = p.postId) AS commentsCount, " +
+            "(CASE WHEN EXISTS (SELECT 1 FROM heart h2 WHERE h2.postId = p.postId AND h2.userId = ?) THEN true ELSE false END) AS isHearted, " +
+            "(CASE WHEN EXISTS (SELECT 1 FROM bookmark b WHERE b.postId = p.postId AND b.userId = ?) THEN true ELSE false END) AS isBookmarked " +
+            "FROM post p JOIN user u ON p.userId = u.userId WHERE p.userId = ? ORDER BY p.postDate DESC";
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
+            pstmt.setString(1, userService.getLoggedInUser().getUserId());
+            pstmt.setString(2, userService.getLoggedInUser().getUserId());
+            pstmt.setString(3, userId);
+
+            try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+                List<Post> postsForUser = Utility.convertResultSetToPostList(rs);
+                mv.addObject("posts", postsForUser);
+            }
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+        }
         // If an error occured, you can set the following property with the
         // error message to show the error message to the user.
         // String errorMessage = "Some error occured!";
