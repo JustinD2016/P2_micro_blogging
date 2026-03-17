@@ -60,4 +60,25 @@ public class Utility {
         return List.of(postWithComments);
     }
 
+    public static List<Post> convertResultSetToPostList(java.sql.ResultSet rs) throws java.sql.SQLException {
+        List<Post> posts = new ArrayList<>();
+        while (rs.next()) {
+            String postId = rs.getString("postId");
+            String userId = rs.getString("userId");
+            String firstName = rs.getString("firstName");
+            String lastName = rs.getString("lastName");
+            String content = rs.getString("content");
+            String postDate = rs.getString("postDate");
+            int heartsCount = rs.getInt("heartsCount");
+            int commentsCount = rs.getInt("commentsCount");
+            boolean isHearted = rs.getInt("isHearted") > 0;
+            boolean isBookmarked = rs.getInt("isBookmarked") > 0;
+
+            User user = new User(userId, firstName, lastName);
+            Post post = new Post(postId, content, postDate, user, heartsCount, commentsCount, isHearted, isBookmarked);
+            posts.add(post);
+        }
+        return posts;
+    }
+
 }

@@ -10,6 +10,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.List;
 
 import javax.sql.DataSource;
@@ -53,18 +54,43 @@ public class HomeController {
 
         // Following line populates sample data.
         // You should replace it with actual data from the database.
-        List<Post> posts = Utility.createSamplePostsListWithoutComments();
-        mv.addObject("posts", posts);
+         final String sql = "SELECT " +
+            "p.postId, " +
+            "p.userId, " +
+            "u.firstName, " +
+            "u.lastName, " +
+            "p.content, " +
+            "p.postDate, " +
+            "(SELECT COUNT(*) FROM heart h WHERE h.postId = p.postId) AS heartsCount, " +
+            "(SELECT COUNT(*) FROM comment c WHERE c.postId = p.postId) AS commentsCount, " +
+            "(SELECT COUNT(*) FROM bookmark b WHERE b.postId = p.postId AND b.userId = ?) AS isBookmarked, " +
+            "(SELECT COUNT(*) FROM heart h WHERE h.postId = p.postId AND h.userId = ?) AS isHearted " +
+            "FROM post p " +
+            "JOIN user u ON p.userId = u.userId " +
+            "ORDER BY p.postDate DESC";
+        try (Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-        // If an error occured, you can set the following property with the
-        // error message to show the error message to the user.
-        // An error message can be optionally specified with a url query parameter too.
+        String loggedInUserId = userService.getLoggedInUser().getUserId();
+        pstmt.setInt(1, Integer.parseInt(loggedInUserId));
+        pstmt.setInt(2, Integer.parseInt(loggedInUserId));
+
+        try (ResultSet rs = pstmt.executeQuery()) {
+            List<Post> posts = Utility.convertResultSetToPostList(rs);
+                if (posts.isEmpty()) {
+                    mv.addObject("isNoContent", true);
+                }
+                mv.addObject("posts", posts);
+        }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            String message = URLEncoder.encode("Failed to load posts. Please try again.", StandardCharsets.UTF_8);
+            return new ModelAndView("redirect:/?error=" + message);
+        }
+
         String errorMessage = error;
         mv.addObject("errorMessage", errorMessage);
-
-        // Enable the following line if you want to show no content message.
-        // Do that if your content list is empty.
-        // mv.addObject("isNoContent", true);
 
         return mv;
     }

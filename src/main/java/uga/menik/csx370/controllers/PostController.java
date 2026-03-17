@@ -7,6 +7,10 @@ package uga.menik.csx370.controllers;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Connection;
+import javax.sql.DataSource;
 import java.util.List;
 
 import org.springframework.stereotype.Controller;
@@ -19,6 +23,7 @@ import org.springframework.web.servlet.ModelAndView;
 
 import uga.menik.csx370.models.ExpandedPost;
 import uga.menik.csx370.utility.Utility;
+import uga.menik.csx370.services.UserService;
 
 /**
  * Handles /post URL and its sub urls.
@@ -26,6 +31,14 @@ import uga.menik.csx370.utility.Utility;
 @Controller
 @RequestMapping("/post")
 public class PostController {
+
+    private final UserService userService;
+    private final DataSource dataSource;
+
+    public PostController(UserService userService, DataSource dataSource) {
+        this.userService = userService;
+        this.dataSource = dataSource;
+    }
 
     /**
      * This function handles the /post/{postId} URL.
@@ -97,6 +110,41 @@ public class PostController {
         System.out.println("\tpostId: " + postId);
         System.out.println("\tisAdd: " + isAdd);
 
+        if (isAdd) {
+            final String sql = "insert into heart (postId, userId) values (?, ?)";
+            try (Connection conn = dataSource.getConnection();
+                    PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+                pstmt.setString(1, postId);
+                pstmt.setString(2, userService.getLoggedInUser().getUserId());
+
+                int rowsAffected = pstmt.executeUpdate();
+                if (rowsAffected > 0) {
+                    // Redirect the user if the heart adding is a success.
+                    return "redirect:/post/" + postId;
+                }
+
+            } catch (SQLException e) {
+                System.err.println("SQL Error: " + e.getMessage());
+            }
+        } else {
+            final String sql = "delete from heart where postId = ? and userId = ?";
+            try (Connection conn = dataSource.getConnection();
+                    PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+                pstmt.setString(1, postId);
+                pstmt.setString(2, userService.getLoggedInUser().getUserId());
+
+                int rowsAffected = pstmt.executeUpdate();
+                if (rowsAffected > 0) {
+                    // Redirect the user if the heart removing is a success.
+                    return "redirect:/post/" + postId;
+                }
+
+            } catch (SQLException e) {
+                System.err.println("SQL Error: " + e.getMessage());
+            }
+        }
         // Redirect the user if the comment adding is a success.
         // return "redirect:/post/" + postId;
 
