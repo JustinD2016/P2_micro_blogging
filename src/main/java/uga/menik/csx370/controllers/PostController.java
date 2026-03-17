@@ -209,7 +209,42 @@ public class PostController {
 
         // Redirect the user if the comment adding is a success.
         // return "redirect:/post/" + postId;
+        if (isAdd){
+            final String sql = "insert into bookmark (postId, userId) values (?, ?)";
+            try (Connection conn = dataSource.getConnection();
+                    PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
+                pstmt.setString(1, postId);
+                pstmt.setString(2, userService.getLoggedInUser().getUserId());
+
+                int rowsAffected = pstmt.executeUpdate();
+                if (rowsAffected > 0) {
+                    // Redirect the user if the bookmark adding is a success.
+                    return "redirect:/post/" + postId;
+                }
+
+            } catch (SQLException e) {
+                System.err.println("SQL Error: " + e.getMessage());
+            }
+        } else {
+            final String sql = "delete from bookmark where postId = ? and userId = ?";
+            try (Connection conn = dataSource.getConnection();
+                    PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+                pstmt.setString(1, postId);
+                pstmt.setString(2, userService.getLoggedInUser().getUserId());
+
+                int rowsAffected = pstmt.executeUpdate();
+                if (rowsAffected > 0) {
+                    // Redirect the user if the bookmark removing is a success.
+                    return "redirect:/post/" + postId;
+                }
+
+            } catch (SQLException e) {
+                System.err.println("SQL Error: " + e.getMessage());
+            }
+        }
+        
         // Redirect the user with an error message if there was an error.
         String message = URLEncoder.encode("Failed to (un)bookmark the post. Please try again.",
                 StandardCharsets.UTF_8);
