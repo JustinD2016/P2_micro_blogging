@@ -109,7 +109,25 @@ public class PostController {
         System.out.println("The user is attempting add a comment:");
         System.out.println("\tpostId: " + postId);
         System.out.println("\tcomment: " + comment);
+        
+        final String sql = "insert into comment (postId, userId, content, commentDate) values (?, ?, ?, ?)";
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
+            pstmt.setString(1, postId);
+            pstmt.setString(2, userService.getLoggedInUser().getUserId());
+            pstmt.setString(3, comment);
+            pstmt.setString(4, java.time.LocalDateTime.now().toString());
+
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                // Redirect the user if the comment adding is a success.
+                return "redirect:/post/" + postId;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("SQL Error: " + e.getMessage());
+        }
         // Redirect the user if the comment adding is a success.
         // return "redirect:/post/" + postId;
 
