@@ -86,11 +86,11 @@ public class ProfileController {
             pstmt.setString(2, userService.getLoggedInUser().getUserId());
             pstmt.setString(3, userId);
 
-            try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+            try (ResultSet rs = pstmt.executeQuery()) {
                 List<Post> postsForUser = Utility.convertResultSetToPostList(rs);
                 mv.addObject("posts", postsForUser);
             }
-        } catch (java.sql.SQLException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
         // If an error occured, you can set the following property with the
