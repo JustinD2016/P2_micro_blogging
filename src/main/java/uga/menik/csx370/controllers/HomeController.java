@@ -67,6 +67,7 @@ public class HomeController {
             "(SELECT COUNT(*) FROM heart h WHERE h.postId = p.postId AND h.userId = ?) AS isHearted " +
             "FROM post p " +
             "JOIN user u ON p.userId = u.userId " +
+            "WHERE p.userID IN (SELECT followerID FROM follow WHERE followeeID = ?)" +
             "ORDER BY p.postDate DESC";
         try (Connection conn = dataSource.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -74,6 +75,8 @@ public class HomeController {
         String loggedInUserId = userService.getLoggedInUser().getUserId();
         pstmt.setInt(1, Integer.parseInt(loggedInUserId));
         pstmt.setInt(2, Integer.parseInt(loggedInUserId));
+        pstmt.setInt(3, Integer.parseInt(loggedInUserId));
+
 
         try (ResultSet rs = pstmt.executeQuery()) {
             List<Post> posts = Utility.convertResultSetToPostList(rs);
