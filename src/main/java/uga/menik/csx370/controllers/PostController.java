@@ -13,6 +13,8 @@ import java.sql.SQLException;
 import java.sql.Connection;
 import javax.sql.DataSource;
 import java.util.List;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -113,7 +115,7 @@ public class PostController {
         final String sql = "insert into comment (postId, userId, content, commentDate) values (?, ?, ?, ?)";
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+            
             pstmt.setString(1, postId);
             pstmt.setString(2, userService.getLoggedInUser().getUserId());
             pstmt.setString(3, comment);
