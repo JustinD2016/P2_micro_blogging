@@ -41,7 +41,13 @@ public class PeopleService {
      */
     public List<FollowableUser> getFollowableUsers(String userIdToExclude) {
         List<FollowableUser> fol = new ArrayList<>();
-        final String sql = "select u.userId, u.firstName, u.lastName from user u where u.userId != ? AND u.userId NOT IN (SELECT followerId FROM follow WHERE followeeId = ?)";
+        final String sql = "SELECT u.userId, u.firstName, u.lastName, COALESCE(DATE_FORMAT(lastPost.lastPostDate, '%b %d, %Y, %h:%i%p'), 'No posts yet') AS lastPostDate " + 
+                            "FROM user u " + 
+                            "LEFT JOIN "  + 
+                            "(SELECT p.userId, MAX(p.postDate) AS lastPostDate " +
+                            "FROM post p " + 
+                            "GROUP BY p.userId)  lastPost ON u.userId = lastPost.userId " +
+                            "WHERE u.userId != ? AND u.userId NOT IN (SELECT followerId FROM follow WHERE followeeId = ?)";
 
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -54,8 +60,9 @@ public class PeopleService {
                     String userId = rs.getString("userId");
                     String firstName = rs.getString("firstName");
                     String lastName = rs.getString("lastName");
+                    String lastPostDate = rs.getString("lastPostDate");
                     boolean isFollowed = false;
-                    FollowableUser followableUser = new FollowableUser(userId, firstName, lastName,  isFollowed, "Mar 07, 2024, 10:54 PM");
+                    FollowableUser followableUser = new FollowableUser(userId, firstName, lastName,  isFollowed, lastPostDate);
                     fol.add(followableUser);
                 }
             }

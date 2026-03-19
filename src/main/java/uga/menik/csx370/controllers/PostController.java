@@ -13,8 +13,6 @@ import java.sql.SQLException;
 import java.sql.Connection;
 import javax.sql.DataSource;
 import java.util.List;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -66,7 +64,7 @@ public class PostController {
             "u.firstName, " +
             "u.lastName, " +
             "p.content, " +
-            "p.postDate, " +
+            "DATE_FORMAT(p.postDate, '%b %d, %Y, %h:%i%p') AS postDate, " +
             "(SELECT COUNT(*) FROM heart h WHERE h.postId = p.postId) AS heartsCount, " +
             "(SELECT COUNT(*) FROM comment c WHERE c.postId = p.postId) AS commentsCount, " +
             "(CASE WHEN EXISTS (SELECT 1 FROM heart h2 WHERE h2.postId = p.postId AND h2.userId = ?) THEN true ELSE false END) AS isHearted, " +
@@ -112,14 +110,14 @@ public class PostController {
         System.out.println("\tpostId: " + postId);
         System.out.println("\tcomment: " + comment);
         
-        final String sql = "insert into comment (postId, userId, content, commentDate) values (?, ?, ?, ?)";
+        final String sql = "insert into comment (postId, userId, content, commentDate) values (?, ?, ?, NOW())";
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setString(1, postId);
             pstmt.setString(2, userService.getLoggedInUser().getUserId());
             pstmt.setString(3, comment);
-            pstmt.setString(4, java.time.LocalDateTime.now().toString());
+           // pstmt.setString(4, java.time.LocalDateTime.now().toString());
 
             int rowsAffected = pstmt.executeUpdate();
             if (rowsAffected > 0) {

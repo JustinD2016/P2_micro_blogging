@@ -56,7 +56,7 @@ public class BookmarksController {
             "u.firstName, " +
             "u.lastName, " +
             "p.content, " +
-            "p.postDate, " +
+            "DATE_FORMAT(p.postDate, '%b %d, %Y, %h:%i%p') AS postDate,  " +
             "(SELECT COUNT(*) FROM heart h WHERE h.postId = p.postId) AS heartsCount, " +
             "(SELECT COUNT(*) FROM comment c WHERE c.postId = p.postId) AS commentsCount, " +
             "(SELECT COUNT(*) FROM bookmark b WHERE b.postId = p.postId AND b.userId = ?) AS isBookmarked, " +
