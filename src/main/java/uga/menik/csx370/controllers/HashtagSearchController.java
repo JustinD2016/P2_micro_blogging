@@ -1,11 +1,17 @@
-/**
-Copyright (c) 2024 Sami Menik, PhD. All rights reserved.
-
-This is a project developed by Dr. Menik to give the students an opportunity to apply database concepts learned in the class in a real world project. Permission is granted to host a running version of this software and to use images or videos of this work solely for the purpose of demonstrating the work to potential employers. Any form of reproduction, distribution, or transmission of the software's source code, in part or whole, without the prior written consent of the copyright owner, is strictly prohibited.
-*/
 package uga.menik.csx370.controllers;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.sql.DataSource;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,46 +19,144 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
-import uga.menik.csx370.models.Post;
+import uga.menik.csx370.models.ExpandedPost;
 import uga.menik.csx370.utility.Utility;
+import uga.menik.csx370.services.UserService;
 
-/**
- * Handles /hashtagsearch URL and possibly others.
- * At this point no other URLs.
- */
 @Controller
 @RequestMapping("/hashtagsearch")
 public class HashtagSearchController {
 
-    /**
-     * This function handles the /hashtagsearch URL itself.
-     * This URL can process a request parameter with name hashtags.
-     * In the browser the URL will look something like below:
-     * http://localhost:8081/hashtagsearch?hashtags=%23amazing+%23fireworks
-     * Note: the value of the hashtags is URL encoded.
-     */
+    private final UserService userService;
+    private final DataSource dataSource;
+
+    public HashtagSearchController(UserService userService, DataSource dataSource) {
+        this.userService = userService;
+        this.dataSource = dataSource;
+    }
+
     @GetMapping
     public ModelAndView webpage(@RequestParam(name = "hashtags") String hashtags) {
         System.out.println("User is searching: " + hashtags);
 
-        // See notes on ModelAndView in BookmarksController.java.
         ModelAndView mv = new ModelAndView("posts_page");
 
-        // Following line populates sample data.
-        // You should replace it with actual data from the database.
-        List<Post> posts = Utility.createSamplePostsListWithoutComments();
-        mv.addObject("posts", posts);
+        List<String> hashtagList = extractHashtags(hashtags);
 
-        // If an error occured, you can set the following property with the
-        // error message to show the error message to the user.
-        // String errorMessage = "Some error occured!";
-        // mv.addObject("errorMessage", errorMessage);
+        if (hashtagList.isEmpty()) {
+            mv.addObject("isNoContent", true);
+            mv.addObject("errorMessage", "Please enter at least one hashtag.");
+            return mv;
+        }
 
-        // Enable the following line if you want to show no content message.
-        // Do that if your content list is empty.
-        // mv.addObject("isNoContent", true);
-        
+        try (Connection conn = dataSource.getConnection()) {
+
+            // Ensure tables exist
+            initializeHashtagTables(conn);
+
+            String placeholders = String.join(",", java.util.Collections.nCopies(hashtagList.size(), "?"));
+
+            final String sql =
+                "SELECT " +
+                "p.postId, " +
+                "p.userId, " +
+                "u.firstName, " +
+                "u.lastName, " +
+                "p.content, " +
+                "DATE_FORMAT(p.postDate, '%b %d, %Y, %h:%i %p') AS postDate, " +
+                "(SELECT COUNT(*) FROM heart h WHERE h.postId = p.postId) AS heartsCount, " +
+                "(SELECT COUNT(*) FROM comment c WHERE c.postId = p.postId) AS commentsCount, " +
+                "(CASE WHEN EXISTS (SELECT 1 FROM heart h2 WHERE h2.postId = p.postId AND h2.userId = ?) THEN true ELSE false END) AS isHearted, " +
+                "(CASE WHEN EXISTS (SELECT 1 FROM bookmark b WHERE b.postId = p.postId AND b.userId = ?) THEN true ELSE false END) AS isBookmarked " +
+                "FROM post p " +
+                "JOIN user u ON p.userId = u.userId " +
+                "JOIN post_hashtag ph ON p.postId = ph.postId " +
+                "JOIN hashtag ht ON ph.hashtagId = ht.hashtagId " +
+                "WHERE ht.tag IN (" + placeholders + ") " +
+                "GROUP BY p.postId, p.userId, u.firstName, u.lastName, p.content, p.postDate " +
+                "HAVING COUNT(DISTINCT ht.tag) = ? " +
+                "ORDER BY p.postDate DESC";
+
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+                int index = 1;
+
+                int userId = Integer.parseInt(userService.getLoggedInUser().getUserId());
+
+                // for isHearted + isBookmarked
+                pstmt.setInt(index++, userId);
+                pstmt.setInt(index++, userId);
+
+                // hashtags
+                for (String tag : hashtagList) {
+                    pstmt.setString(index++, tag);
+                }
+
+                // count match (ALL hashtags)
+                pstmt.setInt(index, hashtagList.size());
+
+                try (ResultSet rs = pstmt.executeQuery()) {
+
+                    List<ExpandedPost> posts = Utility.convertResultSetToExpandedPostList(rs, conn);
+
+                    if (posts.isEmpty()) {
+                        mv.addObject("isNoContent", true);
+                    }
+
+                    mv.addObject("posts", posts);
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            mv.addObject("errorMessage", "Error searching hashtags.");
+            mv.addObject("isNoContent", true);
+        }
+
         return mv;
     }
-    
+
+    /**
+     * Extract hashtags like #hello #world -> ["hello", "world"]
+     */
+    private List<String> extractHashtags(String text) {
+        Set<String> tags = new LinkedHashSet<>();
+
+        Pattern pattern = Pattern.compile("#(\\w+)");
+        Matcher matcher = pattern.matcher(text.toLowerCase());
+
+        while (matcher.find()) {
+            tags.add(matcher.group(1).trim());
+        }
+
+        return new ArrayList<>(tags);
+    }
+
+    /**
+     * Create tables if they don't exist
+     */
+    private void initializeHashtagTables(Connection conn) throws SQLException {
+
+        final String createHashtag =
+            "CREATE TABLE IF NOT EXISTS hashtag (" +
+            "hashtagId INT AUTO_INCREMENT, " +
+            "tag VARCHAR(255) NOT NULL, " +
+            "PRIMARY KEY (hashtagId), " +
+            "UNIQUE (tag))";
+
+        final String createPostHashtag =
+            "CREATE TABLE IF NOT EXISTS post_hashtag (" +
+            "postId INT NOT NULL, " +
+            "hashtagId INT NOT NULL, " +
+            "PRIMARY KEY (postId, hashtagId), " +
+            "FOREIGN KEY (postId) REFERENCES post(postId) ON DELETE CASCADE, " +
+            "FOREIGN KEY (hashtagId) REFERENCES hashtag(hashtagId) ON DELETE CASCADE)";
+
+        try (PreparedStatement p1 = conn.prepareStatement(createHashtag);
+             PreparedStatement p2 = conn.prepareStatement(createPostHashtag)) {
+
+            p1.execute();
+            p2.execute();
+        }
+    }
 }

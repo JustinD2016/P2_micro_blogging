@@ -13,6 +13,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
 
+
 import javax.sql.DataSource;
 
 import org.springframework.stereotype.Controller;
@@ -109,20 +110,83 @@ public class HomeController {
     @PostMapping("/createpost")
     public String createPost(@RequestParam(name = "posttext") String postText) {
         System.out.println("User is creating post: " + postText);
-       
-        final String sql = "INSERT INTO post (userId, content, postDate) VALUES (?, ?, ?)";
-        
+
+        final String insertPostSql = "INSERT INTO post (userId, content, postDate) VALUES (?, ?, NOW())";
+
         try (Connection conn = dataSource.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
-            pstmt.setInt(1, Integer.parseInt(userService.getLoggedInUser().getUserId()));
-            pstmt.setString(2, postText);
-            pstmt.setString(3, java.time.LocalDateTime.now().toString());
-            
-            int rowsAffected = pstmt.executeUpdate();
-            if (rowsAffected > 0) {
-                return "redirect:/";
+            PreparedStatement insertPost = conn.prepareStatement(insertPostSql)) {
+
+            int userId = Integer.parseInt(userService.getLoggedInUser().getUserId());
+
+            insertPost.setInt(1, userId);
+            insertPost.setString(2, postText);
+            insertPost.executeUpdate();
+
+            try (PreparedStatement createHashtagTable = conn.prepareStatement(
+                    "CREATE TABLE IF NOT EXISTS hashtag (" +
+                    "hashtagId INT AUTO_INCREMENT, " +
+                    "tag VARCHAR(255) NOT NULL, " +
+                    "PRIMARY KEY (hashtagId), " +
+                    "UNIQUE (tag))");
+                PreparedStatement createPostHashtagTable = conn.prepareStatement(
+                    "CREATE TABLE IF NOT EXISTS post_hashtag (" +
+                    "postId INT NOT NULL, " +
+                    "hashtagId INT NOT NULL, " +
+                    "PRIMARY KEY (postId, hashtagId), " +
+                    "FOREIGN KEY (postId) REFERENCES post(postId) ON DELETE CASCADE, " +
+                    "FOREIGN KEY (hashtagId) REFERENCES hashtag(hashtagId) ON DELETE CASCADE)")) {
+
+                createHashtagTable.execute();
+                createPostHashtagTable.execute();
             }
+
+            int postId = -1;
+            try (PreparedStatement getPostId = conn.prepareStatement(
+                    "SELECT MAX(postId) AS id FROM post WHERE userId = ?")) {
+                getPostId.setInt(1, userId);
+                try (ResultSet rs = getPostId.executeQuery()) {
+                    if (rs.next()) {
+                        postId = rs.getInt("id");
+                    }
+                }
+            }
+
+            java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("#(\\w+)")
+                .matcher(postText.toLowerCase());
+
+            while (m.find()) {
+                String tag = m.group(1);
+
+                try (PreparedStatement insertTag = conn.prepareStatement(
+                        "INSERT IGNORE INTO hashtag(tag) VALUES (?)")) {
+                    insertTag.setString(1, tag);
+                    insertTag.executeUpdate();
+                }
+
+                int hashtagId = -1;
+                try (PreparedStatement getTagId = conn.prepareStatement(
+                        "SELECT hashtagId FROM hashtag WHERE tag = ?")) {
+                    getTagId.setString(1, tag);
+                    try (ResultSet rs = getTagId.executeQuery()) {
+                        if (rs.next()) {
+                            hashtagId = rs.getInt("hashtagId");
+                        }
+                    }
+                }
+
+                if (postId != -1 && hashtagId != -1) {
+                    try (PreparedStatement linkTag = conn.prepareStatement(
+                            "INSERT IGNORE INTO post_hashtag(postId, hashtagId) VALUES (?, ?)")) {
+                        linkTag.setInt(1, postId);
+                        linkTag.setInt(2, hashtagId);
+                        linkTag.executeUpdate();
+                    }
+                }
+            }
+
+            return "redirect:/";
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
