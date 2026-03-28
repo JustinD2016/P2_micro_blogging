@@ -89,3 +89,20 @@ CREATE TABLE IF NOT EXISTS poll_vote (
     FOREIGN KEY (userId) REFERENCES user(userId),
     FOREIGN KEY (optionId) REFERENCES poll_option(optionId)
 );
+
+-- Hashtag table
+CREATE TABLE IF NOT EXISTS hashtag (
+    hashtagId INT AUTO_INCREMENT,
+    tag VARCHAR(255) NOT NULL,
+    PRIMARY KEY (hashtagId),
+    UNIQUE (tag)
+);
+
+-- Join table between post and hashtag
+CREATE TABLE IF NOT EXISTS post_hashtag (
+    postId INT NOT NULL,
+    hashtagId INT NOT NULL,
+    PRIMARY KEY (postId, hashtagId),
+    FOREIGN KEY (postId) REFERENCES post(postId),
+    FOREIGN KEY (hashtagId) REFERENCES hashtag(hashtagId)
+);
