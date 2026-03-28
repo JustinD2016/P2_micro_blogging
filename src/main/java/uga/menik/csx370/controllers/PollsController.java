@@ -53,7 +53,7 @@ public class PollsController {
         final String sql = "SELECT " +
             "p.pollId, " +
             "p.question, " +
-            "p.pollDate, " +
+            "DATE_FORMAT(p.pollDate, '%b %d, %Y, %h:%i %p') AS pollDate, " +
             "u.userId, " +
             "u.firstName, " +
             "u.lastName, " +

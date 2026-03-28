@@ -73,7 +73,7 @@ public class ProfileController {
             "u.firstName, " +
             "u.lastName, " +
             "p.content, " +
-            "DATE_FORMAT(p.postDate, '%b %d, %Y, %h:%i%p') AS postDate,  " +
+            "DATE_FORMAT(p.postDate, '%b %d, %Y, %h:%i %p') AS postDate,  " +
             "(SELECT COUNT(*) FROM heart h WHERE h.postId = p.postId) AS heartsCount, " +
             "(SELECT COUNT(*) FROM comment c WHERE c.postId = p.postId) AS commentsCount, " +
             "(CASE WHEN EXISTS (SELECT 1 FROM heart h2 WHERE h2.postId = p.postId AND h2.userId = ?) THEN true ELSE false END) AS isHearted, " +

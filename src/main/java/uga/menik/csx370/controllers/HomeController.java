@@ -61,15 +61,16 @@ public class HomeController {
             "u.firstName, " +
             "u.lastName, " +
             "p.content, " +
-            "DATE_FORMAT(p.postDate, '%b %d, %Y, %h:%i%p') AS postDate, " +
+            "DATE_FORMAT(p.postDate, '%b %d, %Y, %h:%i %p') AS postDate, " +
             "(SELECT COUNT(*) FROM heart h WHERE h.postId = p.postId) AS heartsCount, " +
             "(SELECT COUNT(*) FROM comment c WHERE c.postId = p.postId) AS commentsCount, " +
             "(SELECT COUNT(*) FROM bookmark b WHERE b.postId = p.postId AND b.userId = ?) AS isBookmarked, " +
             "(SELECT COUNT(*) FROM heart h WHERE h.postId = p.postId AND h.userId = ?) AS isHearted " +
             "FROM post p " +
             "JOIN user u ON p.userId = u.userId " +
-            "WHERE p.userID IN (SELECT followerID FROM follow WHERE followeeID = ?)" +
+            "WHERE (p.userID IN (SELECT followerID FROM follow WHERE followeeID = ?) OR p.userId = ?) " +
             "ORDER BY p.postDate DESC";
+        // Keaton -- I added OR p.userID on line 71 since users should be able to see their own posts too
         try (Connection conn = dataSource.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
@@ -77,7 +78,7 @@ public class HomeController {
         pstmt.setInt(1, Integer.parseInt(loggedInUserId));
         pstmt.setInt(2, Integer.parseInt(loggedInUserId));
         pstmt.setInt(3, Integer.parseInt(loggedInUserId));
-
+        pstmt.setInt(4, Integer.parseInt(loggedInUserId));
 
         try (ResultSet rs = pstmt.executeQuery()) {
             List<Post> posts = Utility.convertResultSetToPostList(rs);
@@ -109,6 +110,11 @@ public class HomeController {
      */
     @PostMapping("/createpost")
     public String createPost(@RequestParam(name = "posttext") String postText) {
+        if (postText == null || postText.trim().isEmpty()) { // For the requirement "Do not allow creating empty posts".
+            String message = URLEncoder.encode("Failed to create poll. Please try again.",
+                StandardCharsets.UTF_8);
+            return "redirect:/?error=" + message;
+        }
         System.out.println("User is creating post: " + postText);
 
         final String insertPostSql = "INSERT INTO post (userId, content, postDate) VALUES (?, ?, NOW())";

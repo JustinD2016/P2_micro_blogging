@@ -41,7 +41,7 @@ public class PeopleService {
      */
     public List<FollowableUser> getFollowableUsers(String userIdToExclude) {
         List<FollowableUser> fol = new ArrayList<>();
-        final String sql = "SELECT u.userId, u.firstName, u.lastName, COALESCE(DATE_FORMAT(lastPost.lastPostDate, '%b %d, %Y, %h:%i%p'), 'No posts yet') AS lastPostDate " + 
+        final String sql = "SELECT u.userId, u.firstName, u.lastName, COALESCE(DATE_FORMAT(lastPost.lastPostDate, '%b %d, %Y, %h:%i %p'), 'No posts yet') AS lastPostDate " + 
                             "FROM user u " + 
                             "LEFT JOIN "  + 
                             "(SELECT p.userId, MAX(p.postDate) AS lastPostDate " +

@@ -101,7 +101,7 @@ public class Utility {
 
             // Second query to get comments for this post
             List<Comment> comments = new ArrayList<>();
-            final String commentSql = "SELECT c.commentId, c.content, c.commentDate, c.userId, u.firstName, u.lastName " +
+            final String commentSql = "SELECT c.commentId, c.content, DATE_FORMAT(c.commentDate, '%b %d, %Y, %h:%i %p') AS commentDate, c.userId, u.firstName, u.lastName " +
                     "FROM comment c JOIN user u ON c.userId = u.userId " +
                     "WHERE c.postId = ? ORDER BY c.commentDate ASC";
 
