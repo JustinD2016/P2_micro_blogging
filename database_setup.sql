@@ -62,3 +62,30 @@ CREATE TABLE IF NOT EXISTS follow (
     FOREIGN KEY (followerId) REFERENCES user(userId),
     FOREIGN KEY (followeeId) REFERENCES user(userId)
 );
+
+CREATE TABLE IF NOT EXISTS poll (
+    pollId INT AUTO_INCREMENT,
+    userId INT NOT NULL,
+    question VARCHAR(1024) NOT NULL,
+    pollDate DATETIME NOT NULL,
+    PRIMARY KEY (pollId),
+    FOREIGN KEY (userId) REFERENCES user(userId)
+);
+
+CREATE TABLE IF NOT EXISTS poll_option (
+    optionId INT AUTO_INCREMENT,
+    pollId INT NOT NULL,
+    optionText VARCHAR(255) NOT NULL,
+    PRIMARY KEY (optionId),
+    FOREIGN KEY (pollId) REFERENCES poll(pollId)
+);
+
+CREATE TABLE IF NOT EXISTS poll_vote (
+    pollId INT NOT NULL,
+    userId INT NOT NULL,
+    optionId INT NOT NULL,
+    PRIMARY KEY (pollId, userId),
+    FOREIGN KEY (pollId) REFERENCES poll(pollId),
+    FOREIGN KEY (userId) REFERENCES user(userId),
+    FOREIGN KEY (optionId) REFERENCES poll_option(optionId)
+);

@@ -9,6 +9,8 @@ import uga.menik.csx370.models.ExpandedPost;
 import uga.menik.csx370.models.FollowableUser;
 import uga.menik.csx370.models.Post;
 import uga.menik.csx370.models.User;
+import uga.menik.csx370.models.Poll;
+import uga.menik.csx370.models.PollOption;
 
 public class Utility {
 
@@ -125,5 +127,57 @@ public class Utility {
         }
     return posts;
 }
+
+    public static List<Poll> convertResultSetToPollList(java.sql.ResultSet rs) throws java.sql.SQLException {
+            // polls stores all polls made from ResultSet
+            List<Poll> polls = new ArrayList<>();
+
+            // Tracks all polls being converted (cPollId is current poll id)
+            String cPollId = null;
+            Poll cPoll = null;
+
+            // Contains the options for the current poll
+            List<PollOption> cOptions = null; 
+
+            while (rs.next()) {
+                String pollId = rs.getString("pollId");
+
+                // If the poll is the first or new id, create new poll object
+                if (cPollId == null || !cPollId.equals(pollId)) {
+                    // Update current pollId
+                    cPollId = pollId;
+
+                    // get attribute values
+                    String userId = rs.getString("userId");
+                    String firstName = rs.getString("firstName");
+                    String lastName = rs.getString("lastName");
+                    User user = new User(userId, firstName, lastName);
+
+                    // create list to store current poll's options
+                    cOptions = new ArrayList<>();
+
+                    // create poll with attributes
+                    String question = rs.getString("question");
+                    String pollDate = rs.getString("pollDate");
+                    cPoll = new Poll(pollId, question, pollDate, user, cOptions);
+
+                    // add current poll to polls
+                    polls.add(cPoll);
+                }
+
+                // get attributes of the options for the current poll
+                String optionId = rs.getString("optionId");
+                String optionText = rs.getString("optionText");
+                int voteCount = rs.getInt("voteCount");
+                boolean userVote = rs.getInt("userVote") > 0; // these come from COUNT(*) so > 0 converts them to boolean
+                boolean hasVoted = rs.getInt("hasVoted") > 0; // I had trouble with this one and found this as a solution
+                PollOption option = new PollOption (optionId, optionText, voteCount, userVote, hasVoted);
+
+                // add options to the current poll's options
+                cOptions.add(option);
+
+            }
+        return polls;
+    }
 
 }
