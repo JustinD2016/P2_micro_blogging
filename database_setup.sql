@@ -17,6 +17,13 @@ create table if not exists user (
     constraint firstName_min_length check (char_length(trim(firstName)) >= 2),
     constraint lastName_min_length check (char_length(trim(lastName)) >= 2)
 );
+
+INSERT INTO user (username, password, firstName, lastName) VALUES 
+("Ievans", "pass1", "Isaiah", "Evans"), 
+("JusJeff", "pass2", "Justin", "Jefferson"), 
+("TBrad", "pass3", "Tom", "Brady"), 
+("PMan", "pass4", "Peyton", "Manning");
+
 CREATE TABLE IF NOT EXISTS post (
     postId INT AUTO_INCREMENT,
     userId INT NOT NULL,
@@ -26,6 +33,12 @@ CREATE TABLE IF NOT EXISTS post (
     FOREIGN KEY (userId) REFERENCES user(userId),
     CONSTRAINT content_min_length CHECK (CHAR_LENGTH(TRIM(content)) >= 1)
 );
+
+INSERT INTO post (userId, content, postDate) VALUES 
+(1, "I play for Duke", NOW()), 
+(2, "I play for the vikings", NOW()),
+(3, "I am the GOAT", NOW()),
+(3, "Bill is nothing without me #GOAT", NOW());
 
 CREATE TABLE IF NOT EXISTS comment (
     commentId INT AUTO_INCREMENT,
