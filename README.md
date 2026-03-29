@@ -5,7 +5,7 @@ Justin Dorval: Made majority of the app function initially and added important d
 Aaryan Gupta: README, ER diagram, and final submission.
 Connor Ray: Hashtag system allowing users to include hashtags on posts and search for posts based on hashtags.
 Hashtags are now stored separately in the database instead of being a part of the post text.
-Jacob Stewart: Formatted dates, fixed the homepage only showing followed people.
+Jacob Stewart: Formatted dates, fixed the homepage only showing followed people. Wrote detailed dml.sql file. 
 
 New Feature: Polls
 Allows the user to create polls, enter answer options, view existing polls, and vote in the poll.
